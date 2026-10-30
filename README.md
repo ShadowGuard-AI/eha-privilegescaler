@@ -1,3 +1,5 @@
+![Banner](banner.png)
+
 # eha-PrivilegeScaler
 A utility that automatically adjusts user privileges on a system to the least privilege necessary based on application usage patterns (determined via process monitoring). - Focused on Automates common endpoint hardening tasks. Examples include configuring firewall rules, disabling unnecessary services, and checking system configurations against security benchmarks (e.g., CIS benchmarks). Reports on compliance and provides remediation suggestions.
 
