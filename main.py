@@ -29,7 +29,7 @@ def setup_argparse():
         argparse.ArgumentParser: The argument parser object.
     """
     parser = argparse.ArgumentParser(
-        description="A utility to automatically adjust user privileges based on application usage."
+        description="A utility that lists processes and reports what would be checked for privilege review. It changes nothing on the system."
     )
     parser.add_argument(
         "-u",
@@ -61,7 +61,7 @@ def setup_argparse():
         "-d",
         "--dry-run",
         action="store_true",
-        help="Perform a dry run; do not actually change any privileges or settings.",
+        help="Report only. This tool changes nothing on the system in any mode.",
     )
     parser.add_argument(
         "-v",
@@ -83,15 +83,20 @@ def load_configuration(config_file):
     Returns:
         dict: Configuration dictionary, or None if loading fails.
     """
+    # The config is optional: no setting currently needs it.
+    if not os.path.exists(config_file):
+        logging.info(f"No configuration file at {config_file}; continuing with no configuration.")
+        print(f"No configuration file found at {config_file}; continuing with no configuration.")
+        return {}
     try:
         with open(config_file, "r") as f:
             config = yaml.safe_load(f)
+        if config is None:
+            config = {}
         logging.info(f"Configuration loaded from {config_file}")
         return config
     except FileNotFoundError:
-        logging.error(f"Configuration file not found: {config_file}")
-        print(f"Error: Configuration file not found: {config_file}")
-        return None
+        return {}
     except yaml.YAMLError as e:
         logging.error(f"Error loading YAML configuration: {e}")
         print(f"Error loading YAML configuration: {e}")
@@ -137,12 +142,8 @@ def analyze_process_privileges(process, dry_run=False):
         pid = process.info["pid"]
         logging.info(f"Analyzing process: {process_name} (PID: {pid})")
 
-        # Placeholder for privilege analysis and reduction logic
-        print(f"Analyzing process {process_name} (PID: {pid})...")
-        if dry_run:
-            print("Dry run: Would reduce privileges if necessary.")
-        else:
-            print("Reducing privileges (if necessary)...")  # Replace with actual code
+        print(f"Checking process {process_name} (PID: {pid})...")
+        print("Check report: this process would be checked for privilege review. No action was performed.")
 
     except psutil.NoSuchProcess:
         logging.warning(f"Process with PID {pid} no longer exists.")
@@ -163,14 +164,9 @@ def apply_security_benchmark(benchmark_name, dry_run=False):
     Returns:
         None
     """
-    logging.info(f"Applying security benchmark: {benchmark_name}")
-    print(f"Applying security benchmark: {benchmark_name}...")
-
-    # Placeholder for benchmark application logic (CIS, etc.)
-    if dry_run:
-        print(f"Dry run: Would apply {benchmark_name} benchmark.")
-    else:
-        print(f"Applying {benchmark_name} benchmark...")  # Replace with actual code
+    logging.info(f"Check report for benchmark: {benchmark_name}")
+    print(f"Checking security benchmark: {benchmark_name}...")
+    print(f"Check report: the {benchmark_name} benchmark would be checked. No action was performed.")
 
 
 def disable_unnecessary_services(dry_run=False):
@@ -183,14 +179,9 @@ def disable_unnecessary_services(dry_run=False):
     Returns:
         None
     """
-    logging.info("Disabling unnecessary services...")
-    print("Disabling unnecessary services...")
-
-    # Placeholder for service disabling logic
-    if dry_run:
-        print("Dry run: Would disable unnecessary services.")
-    else:
-        print("Disabling services...")  # Replace with actual code
+    logging.info("Check report for services.")
+    print("Checking unnecessary services...")
+    print("Check report: unnecessary services would be checked. No action was performed.")
 
 
 def configure_firewall(dry_run=False):
@@ -203,14 +194,9 @@ def configure_firewall(dry_run=False):
     Returns:
         None
     """
-    logging.info("Configuring firewall rules...")
-    print("Configuring firewall rules...")
-
-    # Placeholder for firewall configuration logic
-    if dry_run:
-        print("Dry run: Would configure firewall rules.")
-    else:
-        print("Configuring firewall...")  # Replace with actual code
+    logging.info("Check report for firewall rules.")
+    print("Checking firewall rules...")
+    print("Check report: firewall rules would be checked. No action was performed.")
 
 
 def main():
@@ -234,28 +220,35 @@ def main():
         sys.exit(1)
 
     try:
-        # 1. Apply security benchmarks
-        apply_security_benchmark(args.benchmark, args.dry_run)
-
-        # 2. Disable unnecessary services
-        disable_unnecessary_services(args.dry_run)
-
-        # 3. Configure Firewall
-        configure_firewall(args.dry_run)
-
-        # 4. Analyze processes and reduce privileges.
         processes = get_user_processes(args.user)
+        matched = []
         for process in processes:
             if args.process is None or args.process.lower() in process.info["name"].lower():
-                analyze_process_privileges(process, args.dry_run)
-
+                matched.append(process)
+        if args.user is not None:
+            # get_user_processes already filtered by user; keep matched as is
+            pass
+        # The user filter in get_user_processes and the process filter above both apply.
+        count = len(matched)
+        print(f"Processes matched: {count}")
+        if count == 0:
+            print("No processes matched. Nothing was checked.")
+            logging.info("No processes matched. Nothing was checked.")
+            sys.exit(1)
+        apply_security_benchmark(args.benchmark, args.dry_run)
+        disable_unnecessary_services(args.dry_run)
+        configure_firewall(args.dry_run)
+        for process in matched:
+            analyze_process_privileges(process, args.dry_run)
+    except SystemExit:
+        raise
     except Exception as e:
         logging.error(f"An unexpected error occurred: {e}")
         print(f"An unexpected error occurred: {e}")
         sys.exit(1)
 
-    logging.info("eha-PrivilegeScaler completed.")
-    print("eha-PrivilegeScaler completed.")
+    logging.info("Check report finished. No action was performed.")
+    print("Check report finished. No action was performed.")
 
 
 if __name__ == "__main__":

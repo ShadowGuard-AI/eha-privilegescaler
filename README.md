@@ -1,13 +1,18 @@
 ![Banner](banner.png)
 
 # eha-PrivilegeScaler
-A utility that automatically adjusts user privileges on a system to the least privilege necessary based on application usage patterns (determined via process monitoring). - Focused on Automates common endpoint hardening tasks. Examples include configuring firewall rules, disabling unnecessary services, and checking system configurations against security benchmarks (e.g., CIS benchmarks). Reports on compliance and provides remediation suggestions.
+A utility that lists processes and reports what would be checked for privilege review. It changes nothing on the system: it does not adjust privileges, apply a benchmark, disable services, or configure a firewall. Each report line states what would be checked and that no action was performed. - Focused on listing processes with optional user and process filters, and reporting the checks that a hardening review would cover, including benchmark, service, and firewall checks, without performing them.
 
 ## Install
 `git clone https://github.com/ShadowStrikeHQ/eha-privilegescaler`
 
 ## Usage
-`./eha-privilegescaler [params]`
+`python3 main.py [-u user] [-p process] [-b benchmark] [-c config]`
+
+Notes on behaviour:
+- This tool lists processes and reports what would be checked. It changes nothing on the system, in any mode.
+- A configuration file is optional. A run with no config file at all works, and an empty valid YAML file is accepted as an empty configuration.
+- If a user or process filter matches zero processes, the run prints a plain nothing matched line and exits non-zero, with no action or completion lines.
 
 ## Parameters
 - `-h`: Show help message and exit
@@ -15,7 +20,7 @@ A utility that automatically adjusts user privileges on a system to the least pr
 - `-p`: The process name to monitor. If not provided, monitors all processes.
 - `-b`: No description provided
 - `-c`: No description provided
-- `-d`: Perform a dry run; do not actually change any privileges or settings.
+- `-d`: Report only. This tool changes nothing on the system in any mode.
 - `-v`: Enable verbose output to the console.
 
 ## License
