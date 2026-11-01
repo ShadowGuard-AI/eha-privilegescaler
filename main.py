@@ -14,6 +14,9 @@ CONFIG_FILE = "config.yaml"  # Added for future configurations
 DEFAULT_BENCHMARK = "cis"
 
 # Configure logging
+# Logging goes to a file in the starting folder, configured at import.
+# That means even a --help run creates eha-PrivilegeScaler.log, and the
+# console stays quiet unless --verbose adds a stream handler in main.
 logging.basicConfig(
     filename=LOG_FILE,
     level=logging.INFO,
@@ -84,6 +87,9 @@ def load_configuration(config_file):
         dict: Configuration dictionary, or None if loading fails.
     """
     # The config is optional: no setting currently needs it.
+    # The return contract matters more than the contents: a missing file and
+    # an empty file both give {} and the run continues, while malformed YAML
+    # gives None and main exits. Nothing downstream reads any key yet.
     if not os.path.exists(config_file):
         logging.info(f"No configuration file at {config_file}; continuing with no configuration.")
         print(f"No configuration file found at {config_file}; continuing with no configuration.")
@@ -114,6 +120,10 @@ def get_user_processes(username=None):
         list: A list of psutil.Process objects.
     """
     processes = []
+    # process_iter with a fixed attribute list takes one snapshot per
+    # process. A process can still exit between the snapshot and the checks
+    # below, which is why NoSuchProcess is handled per process instead of
+    # failing the whole listing.
     for proc in psutil.process_iter(["pid", "name", "username"]):
         try:
             if username is None or proc.info["username"] == username:
@@ -146,6 +156,9 @@ def analyze_process_privileges(process, dry_run=False):
         print("Check report: this process would be checked for privilege review. No action was performed.")
 
     except psutil.NoSuchProcess:
+    # A hazard in these handlers: if reading process.info itself is what
+    # raised, pid and process_name may not be bound yet, and the handler can
+    # raise NameError while trying to report the first error.
         logging.warning(f"Process with PID {pid} no longer exists.")
         print(f"Warning: Process with PID {pid} no longer exists.")
     except Exception as e:
@@ -223,6 +236,9 @@ def main():
         processes = get_user_processes(args.user)
         matched = []
         for process in processes:
+            # The name filter is a case-insensitive substring match, not an exact
+            # name. Asking for python also matches python3 and anything containing
+            # the word, which is the behaviour I wanted for a review listing.
             if args.process is None or args.process.lower() in process.info["name"].lower():
                 matched.append(process)
         if args.user is not None:
@@ -235,6 +251,10 @@ def main():
             print("No processes matched. Nothing was checked.")
             logging.info("No processes matched. Nothing was checked.")
             sys.exit(1)
+        # These three calls and the per-process check are report only. The
+        # dry_run flag is threaded through every one of them, but there is no
+        # applying mode behind it: this tool changes nothing in any mode, and
+        # the printed lines say exactly that.
         apply_security_benchmark(args.benchmark, args.dry_run)
         disable_unnecessary_services(args.dry_run)
         configure_firewall(args.dry_run)
